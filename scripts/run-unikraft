@@ -1,0 +1,36 @@
+#!/bin/bash
+REMOTE_IP=localhost
+REMOTE_PASSWORD=
+REMOTE_UN=
+portx86=
+PWD=`pwd`
+ELF_OBJ=$PWD/build/unikraft_kvm-sw_64
+SIMULATOR_DIR=/home/XXX/simulator
+UNIKRAFT_DIR=./
+
+
+if [ "$1" == "rrk" ];then
+	sshpass -p $REMOTE_PASSWORD ssh $REMOTE_UN@$REMOTE_IP "cd $SIMULATOR_DIR && . $SIMULATOR_DIR/rrk"
+	exit 0;
+fi
+
+if grep -Fxq "CONFIG_SW_QEMU=y" .config
+then
+	echo "==============QEMU_MODE================"
+else
+	echo "===========ERR:Switch to QEMU mode!==============="
+	exit 1
+fi
+set +e
+sshpass -p $REMOTE_PASSWORD ssh $REMOTE_UN@$REMOTE_IP "sshpass -p 123456 ssh -p $portx86 root@localhost "shutdown -h 0""
+set -e
+cd $UNIKRAFT_DIR
+make clean;make -j 16;
+set +e
+sshpass -p $REMOTE_PASSWORD ssh $REMOTE_UN@$REMOTE_IP "mv $SIMULATOR_DIR/aikernel $SIMULATOR_DIR/aikernel.last"
+set -e
+sshpass -p $REMOTE_PASSWORD scp $ELF_OBJ $REMOTE_UN@$REMOTE_IP:$SIMULATOR_DIR/aikernel
+sshpass -p $REMOTE_PASSWORD ssh $REMOTE_UN@$REMOTE_IP "cd $SIMULATOR_DIR && . $SIMULATOR_DIR/run_daemon"
+echo "Preperation Completed"
+sleep 3
+sshpass -p $REMOTE_PASSWORD ssh $REMOTE_UN@$REMOTE_IP "cd $SIMULATOR_DIR && . $SIMULATOR_DIR/rrk"
